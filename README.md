@@ -2,9 +2,8 @@
 
 
  <div align="center">
-  <img src="https://img.shields.io/badge/arXiv-coming%20soon-red" alt="arXiv: coming soon">
-  <a href="resources/technical_report.pdf">
-    <img src="https://img.shields.io/badge/Technical%20Report-PDF-blue" alt="Technical Report">
+  <a href="https://arxiv.org/abs/2606.10804">
+    <img src="https://img.shields.io/badge/arXiv-2606.10804-red" alt="arXiv">
   </a>
   <a href="https://huggingface.co/zai-org/SCAIL-2">
     <img src="https://img.shields.io/badge/%F0%9F%A4%97%20HuggingFace-SCAIL--2-yellow" alt="HuggingFace">
