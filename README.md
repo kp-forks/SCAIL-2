@@ -82,6 +82,44 @@ Please make sure your Python version is between 3.10 and 3.12, inclusive of both
 pip install -r requirements.txt
 ```
 
+### Mask Semantics
+The mask is a critical input to SCAIL-2. To visualize the channels, we encode them with color so they can be fed into the model directly:
+
+- **Black** — tells the model the background at this location should *not* be visible.
+- **White** — tells the model the background at this location *should* be visible.
+- **Color** — encodes the correspondence between character regions and the driving motion.
+
+Animation mode (end-to-end) example (left: reference mask, right: driving mask):
+
+<p align="center">
+  <img src='examples/animation_001/combined.gif' alt='animation mask example' width='80%'>
+</p>
+
+<p align="center">
+  <img src='resources/multi_combination.gif' alt='multi animation mask example' width='80%'>
+</p>
+
+
+Animation mode (pose-driven) example (left: reference mask, right: driving mask):
+
+<p align="center">
+  <img src='examples/animation_001_posedriven/combined.gif' alt='pose-driven animation mask example' width='80%'>
+</p>
+
+Replacement mode example (left: reference mask, right: driving mask):
+
+<p align="center">
+  <img src='examples/replace_001/combined.gif' alt='replacement mask example' width='80%'>
+</p>
+
+We notice from community works that animation mode can still run without the mask. However, it still matters a lot. Without a correct mask:
+
+1. Animation mode collapse into Replacement-Mode behavior in certain inputs.
+2. Animation quality itself degrades in complex motion.
+
+This is especially true when you want the character to remain on its original solid-color background and don't want it to be polluted by the driving video in Animation mode.
+
+
 ### Input Preparation
 
 `SCAIL-Pose` contains the preprocessing code used to prepare SCAIL-2 inputs, including pose extraction, pose rendering, reference masks, and driving-video masks. It can prepare both animation inputs and character replacement inputs. The submodule should live under the project root:
@@ -139,6 +177,7 @@ python NLFPoseExtract/process_replacement.py --subdir /path/to/input --matchnear
 
 The preprocessing outputs are written back to the example folder and can be passed to `generate.py` as `--image`, `--mask_image`, `--pose`, and `--mask_video`.
 
+
 ## 🦾 Usage
 ### Input Preparation
 
@@ -155,6 +194,7 @@ examples/001/
 The paths passed to `--image`, `--mask_image`, `--pose`, and `--mask_video` must exist. The script checks them before loading the image/video data.
 
 For animation mode, `--pose` can be an end-to-end driving video or a pose-rendered video, depending on how the sample was prepared. `--mask_video` should be the corresponding per-frame foreground/control mask. For replacement mode, pass `--replace_flag` and provide the replacement-region mask through `--mask_video`.
+
 
 ### Prompt Semantics
 
@@ -290,11 +330,14 @@ Our implementation is built upon the foundation of [Wan 2.1](https://github.com/
 If you find this work useful in your research, please cite:
 
 ```bibtex
-@article{yan2025scail,
-  title={SCAIL: Towards Studio-Grade Character Animation via In-Context Learning of 3D-Consistent Pose Representations},
-  author={Yan, Wenhao and Ye, Sheng and Yang, Zhuoyi and Teng, Jiayan and Dong, ZhenHui and Wen, Kairui and Gu, Xiaotao and Liu, Yong-Jin and Tang, Jie},
-  journal={arXiv preprint arXiv:2512.05905},
-  year={2025}
+@misc{yan2026scail2unifyingcontrolledcharacter,
+      title={SCAIL-2: Unifying Controlled Character Animation with End-to-end In-Context Conditioning}, 
+      author={Wenhao Yan and Fengjia Guo and Zhuoyi Yang and Jie Tang},
+      year={2026},
+      eprint={2606.10804},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV},
+      url={https://arxiv.org/abs/2606.10804}, 
 }
 ```
 

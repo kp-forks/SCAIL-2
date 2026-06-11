@@ -4,6 +4,8 @@
 *.jpeg
 # *.png
 *.gif
+!examples/**/*.gif
+!resources/*.gif
 *.bmp
 *.mp4
 !examples/**/*.mp4
