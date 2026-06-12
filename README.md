@@ -22,7 +22,7 @@ This repository contains the official implementation code of SCAIL-2: Unifying C
   <img src='resources/teaser.png' alt='Teaser' width='90%'>
 </p>
 
-## 🔎 Motivation and Results
+## 🔎 Introduction
 SCAIL-1 identifies the key bottlenecks that hinder character animation towards production level: how to represent the pose and how to inject the pose. However, the reliance on intermediate pose representation still hinders the model towards complex motion and generalizable identity. We define the issue as over reliance on intermediates.
 
 As intermediates, skeleton maps suffer from inherent ambiguity under complex scenarios. Further, it restricts the driving source to be exocentric human movements and thus cannot handle driving sources like animals. Character replacement and multi-character animation suffers from similar issues, where state-of-the-art methods use inpainting masks, but such masks are still a form of intermediates and limits the application and bounds the performance.
@@ -44,46 +44,19 @@ To bypass intermediate pose representation, we utilize several off-the-shelf mod
   <img src='resources/network.png' alt='Teaser' width='90%'>
 </p>
 
+We model the bias of pose-driven generators as preference and introduce Bias-Aware DPO, a novel mechanisim to further improve details. If you need to fully replicate the results of the paper, please use the [`sat-scail2` branch](https://github.com/zai-org/SCAIL-2/tree/sat-scail2); our DPO LoRA is also released in the HuggingFace repo and can be enabled on the `sat-scail2` branch as well as ComfyUI implementations.
+
 
 
 ## 🚀 Getting Started
-### Checkpoints Download
 
-| ckpts       | Download Link                                                                                                                |    Notes                      |
-|--------------|------------------------------------------------------------------------------------------------------------------------------|-------------------------------|
-| SCAIL-2 | [🤗 Hugging Face](https://huggingface.co/zai-org/SCAIL-2) <br> [🤖 ModelScope](https://modelscope.cn/models/ZhipuAI/SCAIL-2) | Trained with mixed resolutions and fps. <br> End-to-end driven supports both 512p and 704p. <br> Pose-driven performs better under 704p.  <br> H and W should be both divisible by 32<br> (e.g. 704*1280) if using other resolutions. |
+### Using ComfyUI
 
-Use the following commands to download the model weights
-(We have integrated both Wan VAE and T5 modules into this checkpoint for convenience).
+Recommanded ComfyUI workflow: ***to be soon***
 
-```bash
-hf download zai-org/SCAIL-2
-```
-The files should be organized like:
-```
-SCAIL-2/
-├── Wan2.1_VAE.pth
-├── model
-│   ├── 1
-│   │   └── fsdp2_rank_0000_checkpoint.pt
-│   └── latest
-└── umt5-xxl
-    ├── ...
-```
 
-The model weights are intended for `sat`  branch, for usage in `wan` branch, convert to `safetensors` format: 
-```bash
-python convert.py --scail-dir /path/to/SCAIL-2 --save-path /path/to/SCAIL-2.safetensors
-```
-
-### Environment Setup
-Please make sure your Python version is between 3.10 and 3.12, inclusive of both 3.10 and 3.12.
-```
-pip install -r requirements.txt
-```
-
-### Mask Semantics
-The mask is a critical input to SCAIL-2. To visualize the channels, we encode them with color so they can be fed into the model directly:
+#### Mask Semantics
+We notice that some workflows totally drop masks for single-character Animation Mode, it's reasonable to some extent, however, the mask is a critical input to SCAIL-2 even in Animation Mode. To visualize the channels that the mask is actually for, we encode them with colors:
 
 - **Black** — tells the model the background at this location should *not* be visible.
 - **White** — tells the model the background at this location *should* be visible.
@@ -112,15 +85,54 @@ Replacement mode example (left: reference mask, right: driving mask):
   <img src='examples/replace_001/combined.gif' alt='replacement mask example' width='80%'>
 </p>
 
-We notice from community works that animation mode can still run without the mask. However, it still matters a lot. Without a correct mask:
+Without a correct mask:
 
 1. Animation mode collapse into Replacement-Mode behavior in certain inputs.
-2. Animation quality itself degrades in complex motion.
-
-This is especially true when you want the character to remain on its original solid-color background and don't want it to be polluted by the driving video in Animation mode.
+2. Animation quality itself degrades in complex motion and the anchoring effects of the reference frame degrades in long video generation.
 
 
-### Input Preparation
+
+
+### Using This Repo
+#### Checkpoints Download
+
+| ckpts       | Download Link                                                                                                                |    Notes                      |
+|--------------|------------------------------------------------------------------------------------------------------------------------------|-------------------------------|
+| SCAIL-2 | [🤗 Hugging Face](https://huggingface.co/zai-org/SCAIL-2) <br> [🤖 ModelScope](https://modelscope.cn/models/ZhipuAI/SCAIL-2) | Trained with mixed resolutions and fps. <br> End-to-end driven supports both 512p and 704p. <br> Pose-driven performs better under 704p.  <br> H and W should be both divisible by 32<br> (e.g. 704*1280) if using other resolutions. |
+
+Use the following commands to download the model weights
+(We have integrated both Wan VAE and T5 modules into this checkpoint for convenience).
+
+```bash
+hf download zai-org/SCAIL-2
+```
+The files should be organized like:
+```
+SCAIL-2/
+├── Wan2.1_VAE.pth
+├── model
+│   ├── 1
+│   │   └── fsdp2_rank_0000_checkpoint.pt
+│   └── latest
+└── umt5-xxl
+    ├── ...
+```
+
+The model weights are intended for `sat`  branch, for usage in `wan` branch, convert to `safetensors` format: 
+```bash
+python convert.py --scail-dir /path/to/SCAIL-2 --save-path /path/to/SCAIL-2.safetensors
+```
+
+#### Environment Setup
+Please make sure your Python version is between 3.10 and 3.12, inclusive of both 3.10 and 3.12.
+```
+pip install -r requirements.txt
+```
+
+
+
+
+#### Input Preparation
 
 `SCAIL-Pose` contains the preprocessing code used to prepare SCAIL-2 inputs, including pose extraction, pose rendering, reference masks, and driving-video masks. It can prepare both animation inputs and character replacement inputs. The submodule should live under the project root:
 
@@ -179,7 +191,7 @@ The preprocessing outputs are written back to the example folder and can be pass
 
 
 ## 🦾 Usage
-### Input Preparation
+### Generate Input Conditions
 
 `generate.py` runs one SCAIL-2 inference job from four local input files:
 
