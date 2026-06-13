@@ -90,7 +90,22 @@ Without a correct mask:
 1. Animation mode collapse into Replacement-Mode behavior in certain inputs.
 2. Animation quality itself degrades in complex motion and the anchoring effects of the reference frame degrades in long video generation.
 
+The masks also enable zero-shot multi-reference generation, according to the color assignment logic, in multi-reference the following inputs get the corresponding masks as shown below:
 
+<table>
+  <tr>
+    <td align="center"><img src="examples/animation_003_multi_ref/character_0.png" width="160"/></td>
+    <td align="center"><img src="examples/animation_003_multi_ref/character_1.png" width="160"/></td>
+    <td align="center"><img src="examples/animation_003_multi_ref/background.png" width="160"/></td>
+    <td align="center"><img src="examples/animation_003_multi_ref/ref.png" width="160"/></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="examples/animation_003_multi_ref/character_0_mask.png" width="160"/></td>
+    <td align="center"><img src="examples/animation_003_multi_ref/character_1_mask.png" width="160"/></td>
+    <td align="center"><img src="examples/animation_003_multi_ref/background_mask.png" width="160"/></td>
+    <td align="center"><img src="examples/animation_003_multi_ref/ref_mask.jpg" width="160"/></td>
+  </tr>
+</table>
 
 
 ### Using This Repo
@@ -206,42 +221,6 @@ examples/001/
 The paths passed to `--image`, `--mask_image`, `--pose`, and `--mask_video` must exist. The script checks them before loading the image/video data.
 
 For animation mode, `--pose` can be an end-to-end driving video or a pose-rendered video, depending on how the sample was prepared. `--mask_video` should be the corresponding per-frame foreground/control mask. For replacement mode, pass `--replace_flag` and provide the replacement-region mask through `--mask_video`.
-
-
-### Multi-Reference Images
-
-SCAIL-2 supports zero-shot multi-reference inference. Extra references are optional images that provide additional visual evidence, such as another view of the character, a close-up of clothing details, or a clean background reference. Pass them with `--additional_ref_image` and pass one mask for each image with `--additional_ref_mask_image`. The two lists must have the same length and are paired position by position.
-
-Choose each extra-reference mask according to the mask semantics described above:
-
-- For a clean background reference whose visible background should be preserved, use a **white** mask over the valid background area. If the background is not occluded by the character, a full-white mask is usually appropriate.
-- For extra character references where the background is different from the target scene, keep the character/control region in the semantic mask color and make the unrelated background **black**, so the model does not treat that background as visible target content.
-- Use consistent mask colors for the same character or region across the main reference, extra references, and driving mask when you want them to refer to the same subject.
-
-The repository includes a multi-reference animation example under [`examples/animation_003_multi_ref/`](./examples/animation_003_multi_ref/):
-
-```bash
-python generate.py \
-    --model SCAIL-14B \
-    --ckpt_dir /path/to/SCAIL-2 \
-    --scail_path /path/to/SCAIL-2.safetensors \
-    --target_w 896 --target_h 512 \
-    --image examples/animation_003_multi_ref/ref.png \
-    --mask_image examples/animation_003_multi_ref/ref_mask.jpg \
-    --pose examples/animation_003_multi_ref/rendered_v2.mp4 \
-    --mask_video examples/animation_003_multi_ref/rendered_mask_v2.mp4 \
-    --additional_ref_image \
-        examples/animation_003_multi_ref/background.png \
-        examples/animation_003_multi_ref/character_1.png \
-        examples/animation_003_multi_ref/character_0.png \
-    --additional_ref_mask_image \
-        examples/animation_003_multi_ref/background_mask.png \
-        examples/animation_003_multi_ref/character_1_mask.png \
-        examples/animation_003_multi_ref/character_0_mask.png \
-    --prompt "An anime style character with yellow hair, wearing a white and green sailor uniform and a green skirt, is dancing in a warm anime-style classroom." \
-    --save_file output_multi_ref.mp4
-```
-
 
 ### Prompt Semantics
 
@@ -368,6 +347,43 @@ python generate.py \
 ```
 
 Note that SCAIL-2 is trained with long, detailed prompts. Short prompts or an empty prompt can run, but detailed descriptions of the reference subject and motion usually produce better results.
+
+### Experimental Functions: Multi-Reference
+
+SCAIL-2 supports zero-shot multi-reference inference though not optimized for it. Extra references are optional images that provide additional visual evidence, such as another view of the character, a close-up of clothing details, or a clean background reference. Pass them with `--additional_ref_image` and pass one mask for each image with `--additional_ref_mask_image`. The two lists must have the same length and are paired position by position.
+
+Choose each extra-reference mask according to the mask semantics described above:
+- For a clean background reference whose visible background should be preserved, use a **white** mask over the valid background area. If the background is not occluded by the character, a full-white mask is usually appropriate.
+- For extra character references where the background is different from the target scene, keep the character/control region in the semantic mask color and make the unrelated background **black**, so the model does not treat that background as visible target content.
+- Use consistent mask colors for the same character or region across the main reference, extra references, and driving mask when you want them to refer to the same subject.
+The following code provides a simple example of multi-reference inference:
+
+
+```bash
+python generate.py \
+    --model SCAIL-14B \
+    --ckpt_dir /path/to/SCAIL-2 \
+    --scail_path /path/to/SCAIL-2.safetensors \
+    --target_w 896 --target_h 512 \
+    --image examples/animation_003_multi_ref/ref.png \
+    --mask_image examples/animation_003_multi_ref/ref_mask.jpg \
+    --pose examples/animation_003_multi_ref/rendered_v2.mp4 \
+    --mask_video examples/animation_003_multi_ref/rendered_mask_v2.mp4 \
+    --additional_ref_image \
+        examples/animation_003_multi_ref/background.png \
+        examples/animation_003_multi_ref/character_1.png \
+        examples/animation_003_multi_ref/character_0.png \
+    --additional_ref_mask_image \
+        examples/animation_003_multi_ref/background_mask.png \
+        examples/animation_003_multi_ref/character_1_mask.png \
+        examples/animation_003_multi_ref/character_0_mask.png \
+    --prompt "An anime style character with yellow hair, wearing a white and green sailor uniform and a green skirt, is dancing in a warm anime-style classroom." \
+    --save_file output_multi_ref.mp4
+```
+
+However, as the model is not optimized for such inputs, video qualities may degrade even though additional information do get referenced. To address this, mocking those reference images as videos reduce degradation and artifacts. We specially thanks [wuwukasi](https://github.com/wuwukaka) and [iceage](https://github.com/user2318) for provides empircal results and implementations to support the findings. Check their refined implementations here: [WanAnimatePlus](https://github.com/wuwukaka/ComfyUI-WanAnimatePlus) and [CustomNodeKit](https://github.com/user2318/ComfyUI-CustomNodeKit/), where they will provide their workflows for SCAIL-2's multi-ref mode.
+
+
 
 ## ✨ Acknowledgements
 Our implementation is built upon the foundation of [Wan 2.1](https://github.com/Wan-Video/Wan2.1) and the overall project architecture is inherited from [SCAIL](https://github.com/zai-org/SCAIL). We specially thanks [Wan-Animate](https://github.com/Wan-Video/Wan2.2), [MoCha](https://github.com/Orange-3DV-Team/MoCha) as supplement data generators besides [SCAIL](https://github.com/zai-org/SCAIL) and [HuMo Dataset](https://github.com/Phantom-video/HuMo) as the high-quality source video provider.
