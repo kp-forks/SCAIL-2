@@ -90,7 +90,7 @@ Without a correct mask:
 1. Animation mode collapse into Replacement-Mode behavior in certain inputs.
 2. Animation quality itself degrades in complex motion and the anchoring effects of the reference frame degrades in long video generation.
 
-The masks also enable zero-shot multi-reference generation, according to the color assignment logic, in multi-reference the following inputs get the corresponding masks as shown below:
+The masks also enable zero-shot multi-reference generation, where additional visual inputs provide information that single reference may not cover, such as back view, close-up view and occluded background. According to the color assignment logic, in multi-reference the following inputs get the corresponding masks as shown below:
 
 <table>
   <tr>
@@ -381,7 +381,7 @@ python generate.py \
     --save_file output_multi_ref.mp4
 ```
 
-However, as the model is not optimized for such inputs, video qualities may degrade even though additional information do get referenced. To address this, mocking those reference images as videos reduce degradation and artifacts. We specially thanks [wuwukasi](https://github.com/wuwukaka) and [iceage](https://github.com/user2318) for provides empircal results and implementations to support the findings. Check their refined implementations here: [WanAnimatePlus](https://github.com/wuwukaka/ComfyUI-WanAnimatePlus) and [CustomNodeKit](https://github.com/user2318/ComfyUI-CustomNodeKit/), where they will provide their workflows for SCAIL-2's multi-ref mode.
+However, as the model is not optimized for such inputs, video qualities may degrade even though additional information do get referenced. To address this, mocking those reference images as videos reduce degradation and artifacts. We specially thanks [wuwukasi](https://github.com/wuwukaka) and [iceage](https://github.com/user2318) for the collaboration to provide empircal results and implementations to support the findings. Check their refined implementations here: [WanAnimatePlus](https://github.com/wuwukaka/ComfyUI-WanAnimatePlus) and [CustomNodeKit](https://github.com/user2318/ComfyUI-CustomNodeKit/), where they will provide their workflows for SCAIL-2's multi-ref mode.
 
 
 
