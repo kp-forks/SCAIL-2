@@ -40,6 +40,15 @@ def _validate_args(args):
     if args.sample_shift is None:
         args.sample_shift = 3.0
 
+    if args.additional_ref_image is not None and args.additional_ref_mask_image is None:
+        raise ValueError("Please specify --additional_ref_mask_image when using --additional_ref_image.")
+    if args.additional_ref_image is None and args.additional_ref_mask_image is not None:
+        raise ValueError("--additional_ref_mask_image requires --additional_ref_image.")
+    if args.additional_ref_image is not None and len(args.additional_ref_image) != len(args.additional_ref_mask_image):
+        raise ValueError(
+            f"--additional_ref_image and --additional_ref_mask_image must have the same number of paths, "
+            f"got {len(args.additional_ref_image)} and {len(args.additional_ref_mask_image)}.")
+
     args.base_seed = args.base_seed if args.base_seed >= 0 else random.randint(0, sys.maxsize)
 
 
@@ -116,6 +125,20 @@ def _parse_args():
         type=str,
         default=None,
         help="The reference image to generate the video from.")
+    parser.add_argument(
+        "--additional_ref_image", "--additional_image",
+        dest="additional_ref_image",
+        type=str,
+        nargs="+",
+        default=None,
+        help="Additional reference image paths (beta).")
+    parser.add_argument(
+        "--additional_ref_mask_image", "--additional_mask_image",
+        dest="additional_ref_mask_image",
+        type=str,
+        nargs="+",
+        default=None,
+        help="Mask image paths for the additional reference images (beta).")
     parser.add_argument(
         "--mask_image",
         type=str,
@@ -227,11 +250,14 @@ def _check_input_path(path, name):
         raise FileNotFoundError(f"{name} is not a file: {path}")
 
 
-def generate_video(pipeline: wan.SCAIL2Pipeline, prompt: str, image_path: str, image_mask_path: str, pose_path: str, driving_mask_path: str, args, device, rank, cfg, input_idx, replace_flag):
+def generate_video(pipeline: wan.SCAIL2Pipeline, prompt: str, image_path: str, image_mask_path: str, pose_path: str, driving_mask_path: str, args, device, rank, cfg, input_idx, replace_flag, additional_task_input=None):
     _check_input_path(image_path, "input image")
     _check_input_path(image_mask_path, "input mask image")
     _check_input_path(pose_path, "input pose video")
     _check_input_path(driving_mask_path, "input mask video")
+
+    additional_task_input = additional_task_input or {}
+    additional_input = {}
 
     logging.info(f"Input prompt: {prompt}")
     logging.info(f"Input image: {image_path}")
@@ -249,6 +275,28 @@ def generate_video(pipeline: wan.SCAIL2Pipeline, prompt: str, image_path: str, i
     logging.info(f"Input mask image: {image_mask_path}")
     mask_img = Image.open(image_mask_path).convert("RGB")
     mask_img_uncropped = load_image_to_tensor_chw_normalized(mask_img).to(device)
+
+    if additional_task_input.get("additional_ref_image_paths", None) is not None:
+        additional_ref_image_paths = additional_task_input["additional_ref_image_paths"]
+        additional_ref_mask_image_paths = additional_task_input["additional_ref_mask_image_paths"]
+        additional_imgs = []
+        additional_mask_imgs = []
+        for idx, (additional_ref_image_path, additional_ref_mask_image_path) in enumerate(
+                zip(additional_ref_image_paths, additional_ref_mask_image_paths)):
+            _check_input_path(additional_ref_image_path, f"additional ref image {idx}")
+            _check_input_path(additional_ref_mask_image_path, f"additional ref mask image {idx}")
+            logging.info(f"Input additional reference image {idx}: {additional_ref_image_path}")
+            additional_img = Image.open(additional_ref_image_path).convert("RGB")
+            additional_img_uncropped = load_image_to_tensor_chw_normalized(additional_img).to(device)
+            additional_img = resize_for_rectangle_crop(additional_img_uncropped, (target_h, target_w), reshape_mode="center")
+            additional_imgs.append(additional_img.squeeze(0)) # c h w, -1, 1
+            logging.info(f"Input additional reference mask image {idx}: {additional_ref_mask_image_path}")
+            additional_mask_img = Image.open(additional_ref_mask_image_path).convert("RGB")
+            additional_mask_img_uncropped = load_image_to_tensor_chw_normalized(additional_mask_img).to(device)
+            additional_mask_img = resize_for_rectangle_crop(additional_mask_img_uncropped, (target_h, target_w), reshape_mode="center")
+            additional_mask_imgs.append(additional_mask_img.squeeze(0)) # c h w, -1, 1
+        additional_input["additional_ref_imgs"] = additional_imgs
+        additional_input["additional_ref_mask_imgs"] = additional_mask_imgs
 
     logging.info(f"Input pose video: {pose_path}")
     pose_video = load_video_for_pose_sample(pose_path) # t h w c
@@ -287,6 +335,7 @@ def generate_video(pipeline: wan.SCAIL2Pipeline, prompt: str, image_path: str, i
         guide_scale=args.sample_guide_scale,
         seed=args.base_seed,
         offload_model=args.offload_model,
+        **additional_input
     )
 
     if rank == 0:
@@ -366,13 +415,18 @@ def generate(args):
     if args.prompt is None:
         args.prompt = ""
 
+    additional_task_input = {}
+    if args.additional_ref_image is not None:
+        additional_task_input["additional_ref_image_paths"] = args.additional_ref_image
+        additional_task_input["additional_ref_mask_image_paths"] = args.additional_ref_mask_image
+
     if args.txt is not None:
         raise NotImplementedError()
         tasks = get_tasks_from_txt(args.txt)
         logging.info(f"Total number of generation tasks: {len(tasks)}.")
         tasks = tasks[rank::world_size]
     else:
-        tasks = [(args.prompt, args.image, args.mask_image, args.pose, args.mask_video, None)]
+        tasks = [(args.prompt, args.image, args.mask_image, args.pose, args.mask_video, None, additional_task_input)]
     
     logging.info("Creating SCAIL-2 pipeline.")
     scail_pipeline = wan.SCAIL2Pipeline(
@@ -391,8 +445,8 @@ def generate(args):
     )
 
     for task in tasks:
-        prompt, image_path, image_mask_path, pose_path, driving_mask_path, input_idx = task
-        generate_video(scail_pipeline, prompt, image_path, image_mask_path, pose_path, driving_mask_path, args, device, rank, cfg, input_idx, args.replace_flag)
+        prompt, image_path, image_mask_path, pose_path, driving_mask_path, input_idx, additional_task_input = task
+        generate_video(scail_pipeline, prompt, image_path, image_mask_path, pose_path, driving_mask_path, args, device, rank, cfg, input_idx, args.replace_flag, additional_task_input)
         
     logging.info("Finished.")
 

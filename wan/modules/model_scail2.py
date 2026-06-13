@@ -42,12 +42,13 @@ def rope_params(max_seq_len, dim, theta=10000):
 
 @amp.autocast(enabled=False)
 def rope_apply_ref(x, freqs, **kwargs):
-    f = 1
+    rope_key = kwargs.get("rope_key", "ref")
+    f = kwargs.get("rope_ref_T", {}).get(rope_key, 1)
     h = kwargs["rope_H"]
     w = kwargs["rope_W"]
-    shift_f = kwargs["rope_T_shift"]["ref"]
-    shift_h = kwargs["rope_H_shift"]["ref"]
-    shift_w = kwargs["rope_W_shift"]["ref"]
+    shift_f = kwargs["rope_T_shift"][rope_key]
+    shift_h = kwargs["rope_H_shift"][rope_key]
+    shift_w = kwargs["rope_W_shift"][rope_key]
 
     n, c = x.size(2), x.size(3) // 2
 
@@ -77,6 +78,12 @@ def rope_apply_ref(x, freqs, **kwargs):
         # append to collection
         output.append(x_i)
     return torch.stack(output).float()
+
+@amp.autocast(enabled=False)
+def rope_apply_additional_ref(x, freqs, **kwargs):
+    kwargs = dict(kwargs)
+    kwargs["rope_key"] = "additional_ref"
+    return rope_apply_ref(x, freqs, **kwargs)
 
 @amp.autocast(enabled=False)
 def rope_apply_video(x, freqs, **kwargs):
@@ -180,16 +187,35 @@ def rope_apply_scail(x, **kwargs):
     ref_length = kwargs["ref_length"]
     video_length = kwargs["seq_length"]
     pose_length = kwargs["pose_length"]
+    additional_ref_length = kwargs.get("additional_ref_length", 0)
 
-    x_ref = x[:, :ref_length]
-    x_video = x[:, ref_length:ref_length+video_length]
-    x_pose = x[:, -pose_length:]
+    additional_ref_start = 0
+    additional_ref_end = additional_ref_length
+    ref_start = additional_ref_end
+    ref_end = ref_start + ref_length
+    video_start = ref_end
+    video_end = video_start + video_length
+    pose_start = video_end
+    pose_end = pose_start + pose_length
 
-    return torch.cat([
+    chunks = []
+    if additional_ref_length > 0:
+        x_additional_ref = x[:, additional_ref_start:additional_ref_end]
+        chunks.append(rope_apply_additional_ref(x_additional_ref, **kwargs))
+
+    x_ref = x[:, ref_start:ref_end]
+    x_video = x[:, video_start:video_end]
+    x_pose = x[:, pose_start:pose_end]
+    chunks.extend([
         rope_apply_ref(x_ref, **kwargs),
         rope_apply_video(x_video, **kwargs),
         rope_apply_pose(x_pose, **kwargs),
-    ], dim=1)
+    ])
+
+    expected_length = additional_ref_length + ref_length + video_length + pose_length
+    assert expected_length == x.size(1), f"RoPE sequence split mismatch: {expected_length} != {x.size(1)}"
+
+    return torch.cat(chunks, dim=1)
 
 class WanRMSNorm(nn.Module):
 
@@ -651,6 +677,8 @@ class SCAIL2Model(ModelMixin, ConfigMixin):
         replace_flag: bool,
         history_mask: torch.Tensor=None,
         clip_fea=None,
+        additional_ref_latents: list[torch.Tensor]=None,
+        additional_ref_masks: list[torch.Tensor]=None,
     ):
         r"""
         Forward pass through the diffusion model
@@ -701,6 +729,15 @@ class SCAIL2Model(ModelMixin, ConfigMixin):
         ref_latents = self.apply_i2v_ones_masks(ref_latents)
         pose_latents = self.apply_i2v_ones_masks(pose_latents)
 
+        if additional_ref_latents is not None:
+            if additional_ref_masks is None:
+                raise ValueError("additional_ref_masks is required when additional_ref_latents is provided.")
+            additional_ref_latents = self.merge_list_of_tensors_to_batch(additional_ref_latents)
+            additional_ref_latents = self.apply_i2v_ones_masks(additional_ref_latents)
+            additional_ref_masks = self.merge_list_of_tensors_to_batch(additional_ref_masks)
+        elif additional_ref_masks is not None:
+            raise ValueError("additional_ref_masks requires additional_ref_latents.")
+
         B, D, T, H, W = x.shape
         
         assert pose_latents.shape[3] == H//2
@@ -725,6 +762,19 @@ class SCAIL2Model(ModelMixin, ConfigMixin):
             ],
             dim=1,
         )
+
+        additional_ref_length = 0
+        additional_ref_count = 0
+        if additional_ref_latents is not None:
+            if additional_ref_latents.shape[2] % self.patch_size[0] != 0:
+                raise ValueError("additional_ref_latents temporal length must be divisible by temporal patch size.")
+            additional_ref_count = additional_ref_latents.shape[2] // self.patch_size[0]
+            additional_ref_emb = self.patch_embedding(additional_ref_latents)
+            additional_ref_mask_emb = self.patch_embedding_mask(additional_ref_masks)
+            additional_ref_emb = additional_ref_emb + additional_ref_mask_emb
+            additional_ref_emb = rearrange(additional_ref_emb, "b c t h w -> b (t h w) c")
+            additional_ref_length = additional_ref_emb.shape[1]
+            x = torch.cat([additional_ref_emb, x], dim=1)
 
         seq_lens = torch.tensor([u.size(0) for u in x], dtype=torch.long)
         # seq_lens is used for flash attention k_lens
@@ -769,6 +819,7 @@ class SCAIL2Model(ModelMixin, ConfigMixin):
             ref_length=ref_length,
             seq_length=seq_length,
             pose_length=pose_length,
+            additional_ref_length=additional_ref_length,
         )
         
         kwargs["rope_T"] = rope_t
@@ -776,21 +827,30 @@ class SCAIL2Model(ModelMixin, ConfigMixin):
         kwargs["rope_W"] = rope_w
         kwargs["hidden_size_head"] = self.hidden_size_head
 
+        kwargs["rope_ref_T"] = {
+            "ref": 1,
+            "additional_ref": additional_ref_count,
+        }
+
         # TODO: add shift based on rank of sequence parallelism
+        base_video_shift = 1
         kwargs["rope_T_shift"] = {
-            "ref": 0, 
-            "pose": 0 if replace_flag else 1, 
-            "video": 0 if replace_flag else 1, 
+            "additional_ref": 0,
+            "ref": additional_ref_count,
+            "pose": base_video_shift + additional_ref_count,
+            "video": base_video_shift + additional_ref_count,
         }
 
         kwargs["rope_H_shift"] = {
             "ref": 120 if replace_flag else 0, 
+            "additional_ref": 120 if replace_flag else 0,
             "pose": 0,
             "video": 0,
         }
 
         kwargs["rope_W_shift"] = {
             "ref": 0,
+            "additional_ref": 0, 
             "pose": 120,
             "video": 0,
         }
@@ -811,7 +871,7 @@ class SCAIL2Model(ModelMixin, ConfigMixin):
         x = self.head(x, e)
 
         # unpatchify
-        x = self.unpatchify(x, grid_sizes, offset=ref_length)
+        x = self.unpatchify(x, grid_sizes, offset=additional_ref_length + ref_length)
         return [u.float() for u in x]
 
     def unpatchify(self, x, grid_sizes, offset:int= 0):

@@ -208,6 +208,41 @@ The paths passed to `--image`, `--mask_image`, `--pose`, and `--mask_video` must
 For animation mode, `--pose` can be an end-to-end driving video or a pose-rendered video, depending on how the sample was prepared. `--mask_video` should be the corresponding per-frame foreground/control mask. For replacement mode, pass `--replace_flag` and provide the replacement-region mask through `--mask_video`.
 
 
+### Multi-Reference Images
+
+SCAIL-2 supports zero-shot multi-reference inference. Extra references are optional images that provide additional visual evidence, such as another view of the character, a close-up of clothing details, or a clean background reference. Pass them with `--additional_ref_image` and pass one mask for each image with `--additional_ref_mask_image`. The two lists must have the same length and are paired position by position.
+
+Choose each extra-reference mask according to the mask semantics described above:
+
+- For a clean background reference whose visible background should be preserved, use a **white** mask over the valid background area. If the background is not occluded by the character, a full-white mask is usually appropriate.
+- For extra character references where the background is different from the target scene, keep the character/control region in the semantic mask color and make the unrelated background **black**, so the model does not treat that background as visible target content.
+- Use consistent mask colors for the same character or region across the main reference, extra references, and driving mask when you want them to refer to the same subject.
+
+The repository includes a multi-reference animation example under [`examples/animation_003_multi_ref/`](./examples/animation_003_multi_ref/):
+
+```bash
+python generate.py \
+    --model SCAIL-14B \
+    --ckpt_dir /path/to/SCAIL-2 \
+    --scail_path /path/to/SCAIL-2.safetensors \
+    --target_w 896 --target_h 512 \
+    --image examples/animation_003_multi_ref/ref.png \
+    --mask_image examples/animation_003_multi_ref/ref_mask.jpg \
+    --pose examples/animation_003_multi_ref/rendered_v2.mp4 \
+    --mask_video examples/animation_003_multi_ref/rendered_mask_v2.mp4 \
+    --additional_ref_image \
+        examples/animation_003_multi_ref/background.png \
+        examples/animation_003_multi_ref/character_1.png \
+        examples/animation_003_multi_ref/character_0.png \
+    --additional_ref_mask_image \
+        examples/animation_003_multi_ref/background_mask.png \
+        examples/animation_003_multi_ref/character_1_mask.png \
+        examples/animation_003_multi_ref/character_0_mask.png \
+    --prompt "An anime style character with yellow hair, wearing a white and green sailor uniform and a green skirt, is dancing in a warm anime-style classroom." \
+    --save_file output_multi_ref.mp4
+```
+
+
 ### Prompt Semantics
 
 For both animation and character replacement, `--prompt` should describe the generated video itself. It should not be an instruction to the model.

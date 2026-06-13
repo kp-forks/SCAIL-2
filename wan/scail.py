@@ -167,7 +167,10 @@ class SCAIL2Pipeline:
                  guide_scale=5.0,
                  n_prompt=None,
                  seed=-1,
-                 offload_model=True):
+                 offload_model=True,
+                 additional_ref_imgs: list[torch.Tensor] = None,
+                 additional_ref_mask_imgs: list[torch.Tensor] = None,
+                 **kwargs):
         r"""
         Generates video frames from input image and text prompt using diffusion process.
 
@@ -226,6 +229,29 @@ class SCAIL2Pipeline:
         else:
             ref_mask_img = ref_mask_img.to(self.device) # 3 H W, -1 ~ 1
 
+        if additional_ref_imgs is not None:
+            if additional_ref_mask_imgs is None:
+                raise ValueError('additional_ref_mask_imgs is required when additional_ref_imgs is provided.')
+            if isinstance(additional_ref_imgs, torch.Tensor):
+                additional_ref_imgs = [additional_ref_imgs]
+            if isinstance(additional_ref_mask_imgs, torch.Tensor):
+                additional_ref_mask_imgs = [additional_ref_mask_imgs]
+            if len(additional_ref_imgs) != len(additional_ref_mask_imgs):
+                raise ValueError(
+                    'additional_ref_imgs and additional_ref_mask_imgs must have the same length, '
+                    'got %d and %d.' % (len(additional_ref_imgs), len(additional_ref_mask_imgs)))
+            additional_ref_imgs = [
+                TF.to_tensor(u).sub_(0.5).div_(0.5).to(self.device)
+                if not isinstance(u, torch.Tensor) else u.to(self.device)
+                for u in additional_ref_imgs
+            ]
+            additional_ref_mask_imgs = [
+                TF.to_tensor(u).sub_(0.5).div_(0.5).to(self.device)
+                if not isinstance(u, torch.Tensor) else u.to(self.device)
+                for u in additional_ref_mask_imgs
+            ]
+        elif additional_ref_mask_imgs is not None:
+            raise ValueError('additional_ref_mask_imgs requires additional_ref_imgs.')
         num_frames = pose_video.shape[0]
         if driving_mask_video.shape[1] != num_frames:
             raise ValueError(
@@ -258,6 +284,24 @@ class SCAIL2Pipeline:
                 f"segment_overlap={segment_overlap}.")
 
         ref_latent = self.vae.encode([rearrange(ori_img, 't c h w -> c t h w')])[0]
+        
+        additional_ref_latent = None
+        additional_ref_mask_latent_28ch = None
+        if additional_ref_imgs is not None:
+            additional_ref_latents = []
+            additional_ref_mask_latents = []
+            for additional_ref_img, additional_ref_mask_img in zip(additional_ref_imgs, additional_ref_mask_imgs):
+                ori_additional_ref_img = additional_ref_img.unsqueeze(0).to(self.device)
+                additional_ref_latents.append(
+                    self.vae.encode([rearrange(ori_additional_ref_img, 't c h w -> c t h w')])[0]
+                )
+                additional_ref_mask_latents.append(
+                    extract_and_compress_mask_to_latent(
+                        additional_ref_mask_img.unsqueeze(1), additional_spatial_downsample=1
+                    )
+                )
+            additional_ref_latent = torch.cat(additional_ref_latents, dim=1)
+            additional_ref_mask_latent_28ch = torch.cat(additional_ref_mask_latents, dim=1)
         ref_mask_latent_28ch = extract_and_compress_mask_to_latent(
             ref_mask_img.unsqueeze(1), additional_spatial_downsample=1
         )  # (28, 1, H_lat, W_lat)
@@ -443,6 +487,8 @@ class SCAIL2Pipeline:
                     'driving_masks': [driving_masks],
                     'history_mask': [history_mask] if history_mask is not None else None,
                     'replace_flag': replace_flag,
+                    'additional_ref_latents': None if additional_ref_latent is None else [additional_ref_latent],
+                    'additional_ref_masks': None if additional_ref_mask_latent_28ch is None else [additional_ref_mask_latent_28ch],
                 }
 
                 arg_null = {
@@ -455,6 +501,8 @@ class SCAIL2Pipeline:
                     'driving_masks': [driving_masks],
                     'history_mask': [history_mask] if history_mask is not None else None,
                     'replace_flag': replace_flag,
+                    'additional_ref_latents': None if additional_ref_latent is None else [additional_ref_latent],
+                    'additional_ref_masks': None if additional_ref_mask_latent_28ch is None else [additional_ref_mask_latent_28ch],
                 }
 
                 if offload_model:
