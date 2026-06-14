@@ -833,7 +833,7 @@ class SCAIL2Model(ModelMixin, ConfigMixin):
         }
 
         # TODO: add shift based on rank of sequence parallelism
-        base_video_shift = 1
+        base_video_shift = 0 if replace_flag else 1
         kwargs["rope_T_shift"] = {
             "additional_ref": 0,
             "ref": additional_ref_count,
