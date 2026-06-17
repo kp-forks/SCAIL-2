@@ -47,6 +47,22 @@ To bypass intermediate pose representation, we utilize several off-the-shelf mod
 We model the bias of pose-driven generators as preference and introduce Bias-Aware DPO, a novel mechanisim to further improve details. If you need to fully replicate the results of the paper, please use the [`sat-scail2` branch](https://github.com/zai-org/SCAIL-2/tree/sat-scail2); our DPO LoRA is also released in the HuggingFace repo and can be enabled on the `sat-scail2` branch as well as ComfyUI implementations.
 
 
+## 🎨 Community Works
+
+❤️ We thank the community for sharing their amazing creations! Special thanks to Ablejones (Discord), 机智波, 肥猴, 绘篇AI手艺 (Bilibili), Fuzzy-Mastodon (Reddit). Audio comes from reference videos.
+
+<table align="center" width="100%">
+  <tr>
+    <td width="27%"><video src="https://github.com/user-attachments/assets/76380c62-abdf-4149-82d7-feccaa3a380d" controls width="100%"></video></td>
+    <td width="27%"><video src="https://github.com/user-attachments/assets/80d37479-63ed-45f5-8c93-7d3598b6275d" controls width="100%"></video></td>
+    <td width="45%"><video src="https://github.com/user-attachments/assets/39d07740-5089-4d54-843e-e6311c1639f3" controls width="100%"></video></td>
+  </tr>
+  <tr>
+    <td width="50%" colspan="2"><video src="https://github.com/user-attachments/assets/9f8083c7-60af-4735-98d2-7dcfcccbab76" controls width="100%"></video></td>
+    <td width="40%" colspan="1"><video src="https://github.com/user-attachments/assets/9fb9d894-1030-448f-a3f7-71022f359ccb" controls width="100%"></video></td>
+  </tr>
+</table>
+
 
 ## 🚀 Getting Started
 
@@ -384,9 +400,12 @@ python generate.py \
 However, as the model is not optimized for such inputs, video qualities may degrade even though additional information do get referenced. To address this, mocking those reference images as videos reduce degradation and artifacts. We specially thanks [wuwukasi](https://github.com/wuwukaka) and [iceage](https://github.com/user2318) for the collaboration to provide empircal results and implementations to support the findings. Check their refined implementations here: [WanAnimatePlus](https://github.com/wuwukaka/ComfyUI-WanAnimatePlus) and [CustomNodeKit](https://github.com/user2318/ComfyUI-CustomNodeKit/), where they will provide their workflows for SCAIL-2's multi-ref mode.
 
 
+## 🗃️ Datasets
+We provide a large subset of the **MotionPair** dataset used to train SCAIL-2. The dataset is currently under review. To request access, please [fill out this form](https://docs.google.com/forms/d/e/1FAIpQLSfZjC0fZmiYFYHg90_79Yl45ipQLfR8ZhOAahOs19nO8nMvxA/viewform?usp=sharing&ouid=108574921907991336711) and agree to the terms of use. If you have not received a reply within a week after submitting the form, feel free to follow up at teal024@foxmail.com.
+
 
 ## ✨ Acknowledgements
-Our implementation is built upon the foundation of [Wan 2.1](https://github.com/Wan-Video/Wan2.1) and the overall project architecture is inherited from [SCAIL](https://github.com/zai-org/SCAIL). We specially thanks [Wan-Animate](https://github.com/Wan-Video/Wan2.2), [MoCha](https://github.com/Orange-3DV-Team/MoCha) as supplement data generators besides [SCAIL](https://github.com/zai-org/SCAIL) and [HuMo Dataset](https://github.com/Phantom-video/HuMo) as the high-quality source video provider.
+Our implementation is built upon the foundation of [Wan 2.1](https://github.com/Wan-Video/Wan2.1) and the overall project architecture is inherited from [SCAIL](https://github.com/zai-org/SCAIL). We specially thank [Wan-Animate](https://github.com/Wan-Video/Wan2.2), [MoCha](https://github.com/Orange-3DV-Team/MoCha) as supplement data generators besides SCAIL to make MotionPair-60K. We also thank [HuMo Dataset](https://github.com/Phantom-video/HuMo) as the high-quality source video provider.
 
 ## 📄 Citation
 
