@@ -11,6 +11,9 @@
   <a href="https://teal024.github.io/SCAIL-2/">
     <img src="https://img.shields.io/badge/Project%20Page-SCAIL--2-green" alt="Project Page">
   </a>
+  <a href="#datasets">
+    <img src="https://img.shields.io/badge/Datasets-MotionPair-blue" alt="Datasets">
+  </a>
 </div>
 
 
@@ -44,7 +47,7 @@ To bypass intermediate pose representation, we utilize several off-the-shelf mod
   <img src='resources/network.png' alt='Teaser' width='90%'>
 </p>
 
-We model the bias of pose-driven generators as preference and introduce Bias-Aware DPO, a novel mechanisim to further improve details. If you need to fully replicate the results of the paper, please use the [`sat-scail2` branch](https://github.com/zai-org/SCAIL-2/tree/sat-scail2); our DPO LoRA is also released in the HuggingFace repo and can be enabled on the `sat-scail2` branch as well as ComfyUI implementations.
+We model the bias of pose-driven generators as preference and introduce Bias-Aware DPO, a novel mechanisim to further improve details. The DPO LoRA is also released at HuggingFace and can be enabled in this repo as well as ComfyUI implementations.
 
 
 ## 🎨 Community Works
@@ -66,13 +69,9 @@ We model the bias of pose-driven generators as preference and introduce Bias-Awa
 
 ## 🚀 Getting Started
 
-### Using ComfyUI
 
-Recommanded ComfyUI workflow: ***to be soon***
-
-
-#### Mask Semantics
-We notice that some workflows totally drop masks for single-character Animation Mode, it's reasonable to some extent, however, the mask is a critical input to SCAIL-2 even in Animation Mode. To visualize the channels that the mask is actually for, we encode them with colors:
+### Mask Semantics
+The mask is a critical input to SCAIL-2 even in Animation Mode. To visualize the channels that the mask is actually for, we encode them with colors:
 
 - **Black** — tells the model the background at this location should *not* be visible.
 - **White** — tells the model the background at this location *should* be visible.
@@ -81,51 +80,47 @@ We notice that some workflows totally drop masks for single-character Animation 
 Animation mode (end-to-end) example (left: reference mask, right: driving mask):
 
 <p align="center">
-  <img src='examples/animation_001/combined.gif' alt='animation mask example' width='80%'>
+  <img src='examples/animation_001/combined.gif' alt='animation mask example' width='60%'>
 </p>
 
 <p align="center">
-  <img src='resources/multi_combination.gif' alt='multi animation mask example' width='80%'>
+  <img src='resources/multi_combination.gif' alt='multi animation mask example' width='60%'>
 </p>
 
 
 Animation mode (pose-driven) example (left: reference mask, right: driving mask):
 
 <p align="center">
-  <img src='examples/animation_001_posedriven/combined.gif' alt='pose-driven animation mask example' width='80%'>
+  <img src='examples/animation_001_posedriven/combined.gif' alt='pose-driven animation mask example' width='60%'>
 </p>
 
 Replacement mode example (left: reference mask, right: driving mask):
 
 <p align="center">
-  <img src='examples/replace_001/combined.gif' alt='replacement mask example' width='80%'>
+  <img src='examples/replace_001/combined.gif' alt='replacement mask example' width='60%'>
 </p>
 
-Without a correct mask:
-
-1. Animation mode collapse into Replacement-Mode behavior in certain inputs.
-2. Animation quality itself degrades in complex motion and the anchoring effects of the reference frame degrades in long video generation.
+Without a correct mask Animation mode collapse into Replacement-Mode behavior in certain inputs. 
 
 The masks also enable zero-shot multi-reference generation, where additional visual inputs provide information that single reference may not cover, such as back view, close-up view and occluded background. According to the color assignment logic, in multi-reference the following inputs get the corresponding masks as shown below:
 
 <table>
   <tr>
-    <td align="center"><img src="examples/animation_003_multi_ref/character_0.png" width="160"/></td>
-    <td align="center"><img src="examples/animation_003_multi_ref/character_1.png" width="160"/></td>
-    <td align="center"><img src="examples/animation_003_multi_ref/background.png" width="160"/></td>
-    <td align="center"><img src="examples/animation_003_multi_ref/ref.png" width="160"/></td>
+    <td align="center"><img src="examples/animation_003_multi_ref/character_0.png" width="150"/></td>
+    <td align="center"><img src="examples/animation_003_multi_ref/character_1.png" width="150"/></td>
+    <td align="center"><img src="examples/animation_003_multi_ref/background.png" width="150"/></td>
+    <td align="center"><img src="examples/animation_003_multi_ref/ref.png" width="150"/></td>
   </tr>
   <tr>
-    <td align="center"><img src="examples/animation_003_multi_ref/character_0_mask.png" width="160"/></td>
-    <td align="center"><img src="examples/animation_003_multi_ref/character_1_mask.png" width="160"/></td>
-    <td align="center"><img src="examples/animation_003_multi_ref/background_mask.png" width="160"/></td>
-    <td align="center"><img src="examples/animation_003_multi_ref/ref_mask.jpg" width="160"/></td>
+    <td align="center"><img src="examples/animation_003_multi_ref/character_0_mask.png" width="150"/></td>
+    <td align="center"><img src="examples/animation_003_multi_ref/character_1_mask.png" width="150"/></td>
+    <td align="center"><img src="examples/animation_003_multi_ref/background_mask.png" width="150"/></td>
+    <td align="center"><img src="examples/animation_003_multi_ref/ref_mask.jpg" width="150"/></td>
   </tr>
 </table>
 
 
-### Using This Repo
-#### Checkpoints Download
+### Checkpoints Download
 
 | ckpts       | Download Link                                                                                                                |    Notes                      |
 |--------------|------------------------------------------------------------------------------------------------------------------------------|-------------------------------|
@@ -154,7 +149,7 @@ The model weights are intended for `sat`  branch, for usage in `wan` branch, con
 python convert.py --scail-dir /path/to/SCAIL-2 --save-path /path/to/SCAIL-2.safetensors
 ```
 
-#### Environment Setup
+### Environment Setup
 Please make sure your Python version is between 3.10 and 3.12, inclusive of both 3.10 and 3.12.
 ```
 pip install -r requirements.txt
@@ -163,7 +158,7 @@ pip install -r requirements.txt
 
 
 
-#### Input Preparation
+### Input Preparation
 
 `SCAIL-Pose` contains the preprocessing code used to prepare SCAIL-2 inputs, including pose extraction, pose rendering, reference masks, and driving-video masks. It can prepare both animation inputs and character replacement inputs. The submodule should live under the project root:
 
@@ -339,7 +334,10 @@ Useful sampling options:
 - `--sample_solver`: `unipc` or `dpm++`. Defaults to `unipc`.
 - `--offload_model`: whether to offload model components between stages. For single-process inference, the default is `True`.
 
-### LoRA Integration
+Note that SCAIL-2 is trained with long, detailed prompts. Short prompts or an empty prompt can run, but detailed descriptions of the reference subject and motion usually produce better results.
+
+
+### LoRA Integrations
 
 If you use a Lightx2v LoRA checkpoint, pass it with `--lora_path` and set its strength with `--lora_alpha`:
 
@@ -362,7 +360,14 @@ python generate.py \
     --save_file output.mp4
 ```
 
-Note that SCAIL-2 is trained with long, detailed prompts. Short prompts or an empty prompt can run, but detailed descriptions of the reference subject and motion usually produce better results.
+For the DPO LoRA, you can checkout the [`sat-scail2`](https://github.com/zai-org/SCAIL-2/tree/sat-scail2) branch to fully reproduce original results, or convert it into this branch after format matching. The DPO LoRA does not only alleviate hands distortion, but also improved the synchronization of the lips and eyes. If you use ComfyUI, here is a brief comparison showing the effect of the DPO LoRA in Kijai's ComfyUI Workflow:
+
+
+<p align="center"><video src="https://github.com/user-attachments/assets/bfaf6ea8-6190-4b92-a002-2bfc2b523544" controls width="90%"></video></p>
+
+
+
+
 
 ### Experimental Functions: Multi-Reference
 
@@ -400,8 +405,10 @@ python generate.py \
 However, as the model is not optimized for such inputs, video qualities may degrade even though additional information do get referenced. To address this, mocking those reference images as videos reduce degradation and artifacts. We specially thanks [wuwukasi](https://github.com/wuwukaka) and [iceage](https://github.com/user2318) for the collaboration to provide empircal results and implementations to support the findings. Check their refined implementations here: [WanAnimatePlus](https://github.com/wuwukaka/ComfyUI-WanAnimatePlus) and [CustomNodeKit](https://github.com/user2318/ComfyUI-CustomNodeKit/), where they will provide their workflows for SCAIL-2's multi-ref mode.
 
 
+<a id="datasets"></a>
+
 ## 🗃️ Datasets
-We provide a large subset of the **MotionPair** dataset used to train SCAIL-2. The dataset is currently under review. To request access, please [fill out this form](https://docs.google.com/forms/d/e/1FAIpQLSfZjC0fZmiYFYHg90_79Yl45ipQLfR8ZhOAahOs19nO8nMvxA/viewform?usp=sharing&ouid=108574921907991336711) and agree to the terms of use. If you have not received a reply within a week after submitting the form, feel free to follow up at teal024@foxmail.com.
+We provide a large subset of the **MotionPair** dataset used to train SCAIL-2. To request access, please [fill out this form](https://docs.google.com/forms/d/e/1FAIpQLSfZjC0fZmiYFYHg90_79Yl45ipQLfR8ZhOAahOs19nO8nMvxA/viewform?usp=sharing&ouid=108574921907991336711) and agree to the terms of use. If you have not received a reply within a week after submitting the form, feel free to follow up at teal024@foxmail.com.
 
 
 ## ✨ Acknowledgements
@@ -412,7 +419,7 @@ Our implementation is built upon the foundation of [Wan 2.1](https://github.com/
 If you find this work useful in your research, please cite:
 
 ```bibtex
-@misc{yan2026scail2unifyingcontrolledcharacter,
+@misc{yan2026scail2,
       title={SCAIL-2: Unifying Controlled Character Animation with End-to-end In-Context Conditioning}, 
       author={Wenhao Yan and Fengjia Guo and Zhuoyi Yang and Jie Tang},
       year={2026},
