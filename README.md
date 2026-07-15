@@ -25,6 +25,16 @@ This repository contains the official implementation code of SCAIL-2: Unifying C
   <img src='resources/teaser.png' alt='Teaser' width='90%'>
 </p>
 
+## 📰 News
+- **2026.07.15**: 🔥 [Relighting LoRA](https://huggingface.co/zai-org/SCAIL-2/blob/main/model/relighting-lora.pt) for replacement mode released!
+- **2026.06.17**: 🎉 Multi-reference support landed in [ComfyUI](https://github.com/Comfy-Org/ComfyUI/pull/14509).
+- **2026.06.13**: 🎉 [Multi-reference inference](#experimental-functions-multi-reference) released.
+- **2026.06.09**: 🎉 [ComfyUI](https://github.com/Comfy-Org/ComfyUI/pull/14373) integration now available.
+- **2026.06.09**: 🎉 [Model](https://huggingface.co/zai-org/SCAIL-2) & inference code open-sourced.
+
+## 📋 TODO
+- [ ] Open-source training code on [`sat-scail2`](https://github.com/zai-org/SCAIL-2/tree/sat-scail2) branch
+
 ## 🔎 Introduction
 SCAIL-1 identifies the key bottlenecks that hinder character animation towards production level: how to represent the pose and how to inject the pose. However, the reliance on intermediate pose representation still hinders the model towards complex motion and generalizable identity. We define the issue as over reliance on intermediates.
 
@@ -368,6 +378,19 @@ For the DPO LoRA, you can checkout the [`sat-scail2`](https://github.com/zai-org
 
 
 
+
+
+### Relighting LoRA
+
+Relighting LoRA is designed for **replacement mode** and improves replacement quality by making the reference character blend more naturally into the target video with consistent lighting and shadows.
+
+Download the SAT format from [🤗 Hugging Face](https://huggingface.co/zai-org/SCAIL-2/blob/main/model/relighting-lora.pt) and convert to safetensors format to use it in wan branch:
+
+```bash
+python convert_lora.py --lora-dir /path/to/relighting-lora.pt --save-path /path/to/relighting_lora.safetensors
+```
+
+Then use it with `--lora_path` and `--replace_flag` as described in [LoRA Integrations](#lora-integrations) above.
 
 ### Experimental Functions: Multi-Reference
 
