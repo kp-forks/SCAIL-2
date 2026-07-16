@@ -387,7 +387,7 @@ Relighting LoRA is designed for **replacement mode** and improves replacement qu
 Download the SAT format from [🤗 Hugging Face](https://huggingface.co/zai-org/SCAIL-2/blob/main/model/relighting-lora.pt) and convert to safetensors format to use it in wan branch:
 
 ```bash
-python convert_lora.py --lora-dir /path/to/relighting-lora.pt --save-path /path/to/relighting_lora.safetensors
+python convert_lora.py --input /path/to/relighting-lora.pt --output /path/to/relighting_lora.safetensors
 ```
 
 Then use it with `--lora_path` and `--replace_flag` as described in [LoRA Integrations](#lora-integrations) above.
