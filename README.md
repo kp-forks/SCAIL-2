@@ -26,6 +26,7 @@ This repository contains the official implementation code of SCAIL-2: Unifying C
 </p>
 
 ## 📰 News
+- **2026.08.06**: 🔥 Training code and latent WebDataset caching workflow released; see [Training](#training) and the [`sat-scail2`](https://github.com/zai-org/SCAIL-2/tree/sat-scail2) branch.
 - **2026.07.15**: 🔥 [Relighting LoRA](https://huggingface.co/zai-org/SCAIL-2/blob/main/model/relighting-lora.pt) for replacement mode released!
 - **2026.06.17**: 🎉 Multi-reference support landed in [ComfyUI](https://github.com/Comfy-Org/ComfyUI/pull/14509).
 - **2026.06.13**: 🎉 [Multi-reference inference](#experimental-functions-multi-reference) released.
@@ -33,7 +34,7 @@ This repository contains the official implementation code of SCAIL-2: Unifying C
 - **2026.06.09**: 🎉 [Model](https://huggingface.co/zai-org/SCAIL-2) & inference code open-sourced.
 
 ## 📋 TODO
-- [ ] Open-source training code on [`sat-scail2`](https://github.com/zai-org/SCAIL-2/tree/sat-scail2) branch
+- [x] Open-source training code on [`sat-scail2`](https://github.com/zai-org/SCAIL-2/tree/sat-scail2) branch
 
 ## 🔎 Introduction
 SCAIL-1 identifies the key bottlenecks that hinder character animation towards production level: how to represent the pose and how to inject the pose. However, the reliance on intermediate pose representation still hinders the model towards complex motion and generalizable identity. We define the issue as over reliance on intermediates.
@@ -427,6 +428,63 @@ python generate.py \
 
 However, as the model is not optimized for such inputs, video qualities may degrade even though additional information do get referenced. To address this, mocking those reference images as videos reduce degradation and artifacts. We specially thanks [wuwukasi](https://github.com/wuwukaka) and [iceage](https://github.com/user2318) for the collaboration to provide empircal results and implementations to support the findings. Check their refined implementations here: [WanAnimatePlus](https://github.com/wuwukaka/ComfyUI-WanAnimatePlus) and [CustomNodeKit](https://github.com/user2318/ComfyUI-CustomNodeKit/), where they will provide their workflows for SCAIL-2's multi-ref mode.
 
+### Training
+
+This branch provides the preprocessing and latent WebDataset packaging workflow used by the SAT training code. The actual training entrypoints and example configs live in the [`sat-scail2`](https://github.com/zai-org/SCAIL-2/tree/sat-scail2) branch.
+
+First install the extra dependencies for video reading and tensor compression:
+
+```sh
+pip install decord zstandard
+```
+
+Prepare each training case with the same files used by inference, plus one target video named `GT.mp4`:
+
+```text
+case_dir/
+├── GT.mp4                  # target video to reconstruct / train on
+├── rendered_v2.mp4         # driving video or pose-rendered video
+├── rendered_mask_v2.mp4    # driving mask video; replace_mask.mp4 is also supported
+├── ref.jpg                 # reference image
+├── ref_mask.jpg            # reference mask image
+└── prompt.txt              # optional caption; text.txt / caption.txt / recaption.txt also work
+```
+
+You can also pass a text file where each line is either `case_dir` or `prompt@@case_dir`.
+
+Cache one case or a list of cases into a `.tar` WebDataset shard:
+
+```sh
+python cache_scail2_wds.py \
+  --input_dir /path/to/case_dir \
+  --output /path/to/pose_latent_train/000000.tar \
+  --ckpt_dir /path/to/SCAIL-2 \
+  --target_h 512 \
+  --target_w 896 \
+  --max_frames 81
+
+python cache_scail2_wds.py \
+  --input_list /path/to/train_cases.txt \
+  --output /path/to/pose_latent_train/000000.tar \
+  --ckpt_dir /path/to/SCAIL-2 \
+  --target_h 512 \
+  --target_w 896 \
+  --max_frames 81
+```
+
+The cache script uses the Wan VAE to encode `GT.mp4`, the driving/pose video, the reference image, and the reference-frame-conditioned target video. It also compresses the driving and reference masks to latent resolution. The resulting WDS fields are compatible with `data_video.VideoPoseLatentDataset` in the SAT code: `video_pth`, `smpl_render_downsample`, `first_frame_pth`, `ref_frame_pth`, `latent_sam_mask`, `latent_ref_mask`, plus metadata such as `recaption` read from `prompt.txt` or `prompt@@case_dir`.
+
+In the current example implementation, `latent_hands_mask`, `latent_faces_mask`, and `latent_ocr_mask` are written as all-zero latent-size bbox masks. You can modify `cache_scail2_wds.py` to fill these tensors from your own hand / face / OCR annotations. During SAT training, regions where `latent_ocr_mask == 1` are excluded from the loss.
+
+After caching the WDS shards, switch to the SAT branch and point its training config at the cached directory:
+
+```sh
+git checkout sat-scail2
+export SCAIL2_POSE_LATENT_TRAIN_DIR=/path/to/pose_latent_train
+bash scripts/train_mpi_14Bsc_xc_latent_example.sh
+# or
+bash scripts/train_mpi_14Bsc_xc_latent_fsdp_example.sh
+```
 
 <a id="datasets"></a>
 
