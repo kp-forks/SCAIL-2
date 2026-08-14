@@ -26,7 +26,7 @@ This repository contains the official implementation code of SCAIL-2: Unifying C
 </p>
 
 ## 📰 News
-- **2026.08.06**: 🔥 Training code and latent WebDataset caching workflow released; see [Training](#training) and the [`sat-scail2`](https://github.com/zai-org/SCAIL-2/tree/sat-scail2) branch.
+- **2026.08.06**: 🔥 Training code released! See [Training](#training) and the [`sat-scail2`](https://github.com/zai-org/SCAIL-2/tree/sat-scail2) branch. A VRAM-friendly version is available [here](https://github.com/fengjia-guo/SCAIL-2-Tuner). 
 - **2026.07.15**: 🔥 [Relighting LoRA](https://huggingface.co/zai-org/SCAIL-2/blob/main/model/relighting-lora.pt) for replacement mode released!
 - **2026.06.17**: 🎉 Multi-reference support landed in [ComfyUI](https://github.com/Comfy-Org/ComfyUI/pull/14509).
 - **2026.06.13**: 🎉 [Multi-reference inference](#experimental-functions-multi-reference) released.
