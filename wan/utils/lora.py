@@ -25,7 +25,7 @@ def fuse_lora_with_diff_b(
         if weight_key.startswith("diffusion_model."):
             weight_key = weight_key[len("diffusion_model."):]
         if bias_key.startswith("diffusion_model."):
-            bias_key = bias_key[len("diffusion_model.")]
+            bias_key = bias_key[len("diffusion_model."):]
         
         if weight_key not in model_state:
             print(f"[Skip] {weight_key} not in model")
